@@ -34,6 +34,7 @@ import (
 
 // Config holds all environment and flag parameters
 type Config struct {
+	BindAddress    string
 	RouterURL      *url.URL
 	AdminLogin     string
 	AdminPass      string
@@ -70,22 +71,27 @@ const (
 
 func main() {
 	// Load configuration from env or flags
+	flag.StringVar(&cfg.BindAddress, "bind-address", os.Getenv("BIND_ADDRESS"), "Address for the HTTP server to listen on (optional)")
 	var rawRouter string
-	flag.StringVar(&rawRouter, "router_url", os.Getenv("ROUTER_URL"), "Router base URL (with or without scheme)")
-	flag.StringVar(&cfg.AdminLogin, "admin_user", os.Getenv("ADMIN_USER"), "Admin login for router (optional)")
-	flag.StringVar(&cfg.AdminPass, "admin_pass", os.Getenv("ADMIN_PASS"), "Admin password for router (optional)")
-	flag.StringVar(&cfg.ViewerLogin, "viewer_user", os.Getenv("VIEWER_USER"), "Viewer login for router (optional)")
-	flag.StringVar(&cfg.ViewerPass, "viewer_pass", os.Getenv("VIEWER_PASS"), "Viewer password for router (optional)")
+	flag.StringVar(&rawRouter, "router-url", os.Getenv("ROUTER_URL"), "Router base URL (with or without scheme)")
+	flag.StringVar(&cfg.AdminLogin, "admin-user", os.Getenv("ADMIN_USER"), "Admin login for router (optional)")
+	flag.StringVar(&cfg.AdminPass, "admin-pass", os.Getenv("ADMIN_PASS"), "Admin password for router (optional)")
+	flag.StringVar(&cfg.ViewerLogin, "viewer-user", os.Getenv("VIEWER_USER"), "Viewer login for router (optional)")
+	flag.StringVar(&cfg.ViewerPass, "viewer-pass", os.Getenv("VIEWER_PASS"), "Viewer password for router (optional)")
 	var sessionSecret string
-	flag.StringVar(&sessionSecret, "session_secret", os.Getenv("SESSION_SECRET"), "Session auth key (>=32 bytes)")
-	flag.StringVar(&cfg.OIDCIssuer, "oidc_issuer", os.Getenv("OIDC_ISSUER"), "OIDC issuer URL")
-	flag.StringVar(&cfg.OAuth2ClientID, "oauth2_client_id", os.Getenv("OAUTH2_CLIENT_ID"), "OAuth2 client ID")
-	flag.StringVar(&cfg.OAuth2Secret, "oauth2_secret", os.Getenv("OAUTH2_SECRET"), "OAuth2 client secret")
-	flag.StringVar(&cfg.OAuth2Redirect, "oauth2_redirect", os.Getenv("OAUTH2_REDIRECT"), "OAuth2 redirect URL")
-	flag.StringVar(&cfg.JMESRoleQuery, "jmes_query", os.Getenv("JMES_ROLE_QUERY"), "JMESPath role expression")
+	flag.StringVar(&sessionSecret, "session-secret", os.Getenv("SESSION_SECRET"), "Session auth key (>=32 bytes)")
+	flag.StringVar(&cfg.OIDCIssuer, "oidc-issuer", os.Getenv("OIDC_ISSUER"), "OIDC issuer URL")
+	flag.StringVar(&cfg.OAuth2ClientID, "oauth2-client-id", os.Getenv("OAUTH2_CLIENT_ID"), "OAuth2 client ID")
+	flag.StringVar(&cfg.OAuth2Secret, "oauth2-secret", os.Getenv("OAUTH2_SECRET"), "OAuth2 client secret")
+	flag.StringVar(&cfg.OAuth2Redirect, "oauth2-redirect", os.Getenv("OAUTH2_REDIRECT"), "OAuth2 redirect URL")
+	flag.StringVar(&cfg.JMESRoleQuery, "jmes-query", os.Getenv("JMES_ROLE_QUERY"), "JMESPath role expression")
 	var scopesEnv string
-	flag.StringVar(&scopesEnv, "oauth2_scopes", os.Getenv("OAUTH2_SCOPES"), "Comma-separated OAuth2 scopes")
+	flag.StringVar(&scopesEnv, "oauth2-scopes", os.Getenv("OAUTH2_SCOPES"), "Comma-separated OAuth2 scopes")
 	flag.Parse()
+
+	if cfg.BindAddress == "" {
+		cfg.BindAddress = ":8080"
+	}
 
 	// Normalize router URL schema
 	if !strings.HasPrefix(rawRouter, "http://") && !strings.HasPrefix(rawRouter, "https://") {
@@ -163,13 +169,13 @@ func main() {
 
 	// Start server
 	srv := &http.Server{
-		Addr:         ":8080",
+		Addr:         cfg.BindAddress,
 		Handler:      r,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 	go func() {
-		log.Println("server starting on :8080")
+		log.Printf("server starting on %s\n", cfg.BindAddress)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}
