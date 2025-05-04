@@ -20,9 +20,28 @@ A Go-based HTTP reverse-proxy that fronts your Keenetic router’s web UI with a
 
 #### Prerequisites
 
-- Go 1.18 or newer  
-- A Keenetic router with web management interface  
+- A Keenetic router with web management interface
 - An OIDC-compliant Identity Provider (e.g. Keycloak)
+
+## ⚡ Quick start
+
+```bash
+docker run -d \
+  --name keen-proxy \
+  -p 8080:8080 \
+  -e SESSION_SECRET=$(openssl rand -base64 32 | head -c 32) \
+  -e ROUTER_URL="http://192.168.1.1/" \
+  -e ADMIN_USER="admin" \
+  -e ADMIN_PASS="***" \
+  -e OIDC_ISSUER="https://sso.example.com/realms/infra" \
+  -e OAUTH2_CLIENT_ID="my-router" \
+  -e OAUTH2_SECRET="***" \
+  -e OAUTH2_REDIRECT="http://localhost:8080/oauth2/callback" \
+  -e JMES_ROLE_QUERY="(contains(resource_access.\"my-router\".roles[], 'admin.my-router') && 'Admin') || (contains(resource_access.\"my-router\".roles[], 'viewer.my-router') && 'Viewer')" \
+  ghcr.io/markovvn1/keenetic-oauth2:latest
+```
+
+Point your browser to http://localhost:8080/, authenticate via your OIDC provider, and enjoy seamless, role-based access to your Keenetic router.
 
 ## ⚙️ Configuration
 
@@ -42,33 +61,6 @@ All settings are read from environment variables (or flags of the same name). Se
 | `OAUTH2_REDIRECT`    | Yes      | OAuth2 redirect URI (callback)                               |
 | `JMES_ROLE_QUERY`    | Yes      | [JMESPath](https://jmespath.org/) expression that returns `"Admin"` or `"Viewer"` from your ID token claims |
 | `BIND_ADDRESS`       | No       | Address for the HTTP server to listen on (default: `:8080`)  |
-
-## 💡Example
-
-```bash
-export SESSION_SECRET=$(openssl rand -base64 32 | head -c 32)
-export ROUTER_URL=http://192.168.1.1/
-export ADMIN_USER=admin
-export ADMIN_PASS=***
-export VIEWER_USER=viewer
-export VIEWER_PASS=***
-export OIDC_ISSUER=https://sso.example.com/realms/main
-export OAUTH2_CLIENT_ID=my-router
-export OAUTH2_SECRET=***
-export OAUTH2_REDIRECT=http://localhost:8080/oauth2/callback
-export JMES_ROLE_QUERY="(contains(resource_access.\"my-router\".roles[], 'admin.my-router') && 'Admin') || (contains(resource_access.\"my-router\".roles[], 'viewer.my-router') && 'Viewer')"
-
-go run cmd/main.go
-```
-
-Or build and run:
-
-```bash
-go build -o keen-proxy cmd/main.go
-./keen-proxy
-```
-
-By default the proxy listens on `:8080`. Point your browser to `http://localhost:8080/`, log in via your OIDC provider, and you'll be transparently proxied to your Keenetic router with the appropriate credentials.
 
 ## 📜 License
 
